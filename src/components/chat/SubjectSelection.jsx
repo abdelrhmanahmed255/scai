@@ -62,7 +62,7 @@ const SubjectSelection = () => {
       return;
     }
   
-    console.log("Selected Subject:", subject.id);
+    
       setCurrentSelection(subject.id, null, null);
     
     // // Verify storage before navigating

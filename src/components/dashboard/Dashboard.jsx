@@ -5,7 +5,7 @@ import {
   Users, Settings, LogOut, Menu, X, Bell,
   User, Search, BarChart2, Home, BookOpen,
   ChevronRight, ChevronLeft,ChevronDown , HelpCircle, FileText,
-  Star // Added Star import here
+  Star,TrendingUp // Added Star import here
 } from 'lucide-react';
 import {
   Dialog,
@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  
 } from "../../components/ui/dialog";
 import LessonsTable from './LessonsTable';
 import StudentLessonPerformance from './StudentLessonPerformance';
@@ -43,48 +44,36 @@ const Dashboard = () => {
   const [selectedLesson, setSelectedLesson] = useState("1-1");
   const [isChapterDropdownOpen, setIsChapterDropdownOpen] = useState(false);
   const [isLessonDropdownOpen, setIsLessonDropdownOpen] = useState(false);
-  const chaptersData = {
+const chaptersData = {
     1: {
-      title: "الحث الكهرومغناطيسي",
+      title: "حالات المادة",
       lessons: {
-        "1-1": "التيار الكهربائي الناتج عن تغير المجالات المغناطيسية",
-        "1-2": "تغير المجالات المغناطيسية يولد قوة دافعة كهربائية حثية"
+        "1-1": "خصائص الموائع",
+        "1-2": "القوى داخل السوائل",
+        "1-3": "الموائع الساكنة والمتحركة",
+        "1-4": "المواد الصلبة"
       }
     },
     2: {
-      title: "الكهرومغناطيسية",
+      title: "الاهتزازات والموجات",
       lessons: {
-        "2-1": "تفاعلات المجالات الكهربائية والمغناطيسية والمادة",
-        "2-2": "المجالات الكهربائية والمغناطيسية في الفضاء"
+        "2-1": "الحركه الدورية",
+        "2-2": "خصائص الموجات",
+        "2-3": "سلوك الموجات"
       }
     },
     3: {
-      title: "نظرية الكم",
+      title: "الصوت وأساسيات الضوء",
       lessons: {
-        "3-1": "النموذج الجسيمي للموجات",
-        "3-2": "موجات المادة"
+        "3-1": "خصائص الصوت والكشف عنه",
+        "3-2": "الرنين في الأعمدة الهوائية والأوتار",
       }
     },
     4: {
-      title: "الذرة",
+      title: "أساسيات الضوء ",
       lessons: {
-        "4-1": "نموذج بور الذري",
-        "4-2": "النموذج الكمي للذرة"
-      }
-    },
-    5: {
-      title: "إلكترونيات الحالة الصلبة",
-      lessons: {
-        "5-1": "التوصيل الكهربائي في المواد الصلبة",
-        "5-2": "الأدوات الإلكترونية"
-      }
-    },
-    6: {
-      title: "الفيزياء النووية",
-      lessons: {
-        "6-1": "النواة",
-        "6-2": "الاضمحلال النووي والتفاعلات النووية",
-        "6-3": "وحدات بناء المادة"
+        "4-1": "الاستضاءة",
+        "4-2": "الطبيعية الموجية للضوء"
       }
     }
   };
@@ -126,6 +115,7 @@ const Dashboard = () => {
         
         const studentsData = await studentsResponse.json();
         setStudentsData(studentsData.users || []);
+        console.log('Students data fetched:', studentsData);
         
         // Fetch teacher report in the background
         const teacherResponse = await fetch('https://scaiapipost.replit.app/teacher-report', {
@@ -140,6 +130,8 @@ const Dashboard = () => {
         if (teacherResponse.ok) {
           const teacherData = await teacherResponse.json();
           setTeacherReport(teacherData.message);
+              
+
         }
         
       } catch (error) {
@@ -151,7 +143,7 @@ const Dashboard = () => {
     };
     
     fetchData();
-    
+
     return () => controller.abort();
   }, []);
   
@@ -194,6 +186,11 @@ const Dashboard = () => {
   const COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4'];
 
   const StudentReportCard = ({ student }) => {
+    // Calculate success rate
+    const successRate = student.questions_answered > 0 
+      ? Math.round((student.correct_answers / student.questions_answered) * 100) 
+      : 0;
+
     return (
       <Dialog 
         open={dialogOpen && selectedStudent?.username === student.username} 
@@ -209,63 +206,116 @@ const Dashboard = () => {
             onClick={() => {
               setSelectedStudent(student);
               setDialogOpen(true);
+              console.log('Student data:', student); // Debug log
             }}
-            className="bg-white rounded-lg shadow-sm hover:shadow-lg transition-all p-6 w-full"
+            className="group bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 p-6 w-full text-left border border-gray-100 hover:border-orange-200 transform hover:-translate-y-1"
           >
-            <div className="flex items-center justify-between mb-6">
-              <div className="h-5 w-5 text-gray-400" />
-              <div className="flex items-center gap-4">
-                <h3 className="text-lg font-semibold text-gray-800">{student.username}</h3>
-                <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center">
-                  <User className="h-5 w-5 text-orange-600" />
+            {/* Header with avatar and name */}
+            <div className="flex items-center gap-4 mb-6">
+              <div className="relative">
+                <div className="h-14 w-14 rounded-full bg-gradient-to-br from-orange-100 to-orange-200 flex items-center justify-center">
+                  <User className="h-7 w-7 text-orange-600" />
                 </div>
+                <div className={`absolute -top-1 -right-1 h-4 w-4 rounded-full border-2 border-white ${
+                  successRate >= 70 ? 'bg-green-500' : 
+                  successRate >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                }`}></div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-gray-900 text-right truncate text-lg">
+                  {student.display_name || student.username || 'غير محدد'}
+                </h3>
+                <p className="text-sm text-gray-500 text-right mt-1">طالب</p>
               </div>
             </div>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-orange-600 font-semibold">{student.questions_created || 0}</span>
-                <span className="text-gray-600">الأسئلة المنشأة</span>
+            
+            {/* Success rate - prominent display */}
+            <div className="text-center mb-6">
+              <div className={`inline-flex items-center justify-center w-20 h-20 rounded-full text-2xl font-bold text-white mb-2 shadow-lg ${
+                successRate >= 70 ? 'bg-green-500' : 
+                successRate >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+              }`}>
+                {successRate}%
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-purple-600 font-semibold">{student.questions_answered || 0}</span>
-                <span className="text-gray-600">الأسئلة المجاب عليها</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-green-600 font-semibold">{student.correct_answers || 0}</span>
-                <span className="text-gray-600">الإجابات الصحيحة</span>
-              </div>
-              <div className="relative pt-2">
-                <div className="text-xs text-gray-500 mb-1 text-right">نسبة التقدم الإجمالية</div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-orange-500 h-2 rounded-full transition-all"
-                    style={{ 
-                      width: `${(student.questions_answered ? (student.correct_answers / student.questions_answered * 100) : 0)}%` 
-                    }}
-                  />
+              <p className="text-sm text-gray-600 font-medium">معدل النجاح</p>
+            </div>
+            
+            {/* Stats grid - responsive 2x2 layout */}
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              <div className="bg-blue-50 rounded-lg p-3 text-center">
+                <div className="text-xl font-bold text-blue-700 mb-1">
+                  {student.questions_answered || 0}
                 </div>
+                <div className="text-xs text-blue-600 font-medium leading-tight">أسئلة مجابة</div>
               </div>
+              <div className="bg-green-50 rounded-lg p-3 text-center">
+                <div className="text-xl font-bold text-green-700 mb-1">
+                  {student.correct_answers || 0}
+                </div>
+                <div className="text-xs text-green-600 font-medium leading-tight">إجابات صحيحة</div>
+              </div>
+              <div className="bg-orange-50 rounded-lg p-3 text-center">
+                <div className="text-xl font-bold text-orange-700 mb-1">
+                  {student.questions_created || 0}
+                </div>
+                <div className="text-xs text-orange-600 font-medium leading-tight">أسئلة منشأة</div>
+              </div>
+              <div className="bg-purple-50 rounded-lg p-3 text-center">
+                <div className="text-xl font-bold text-purple-700 mb-1">
+                  {student.average_rating ? student.average_rating.toFixed(1) : '0.0'}
+                </div>
+                <div className="text-xs text-purple-600 font-medium leading-tight">متوسط التقييم</div>
+              </div>
+            </div>
+            
+            {/* Progress bar */}
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm text-gray-500 font-medium">{successRate}%</span>
+                <span className="text-sm text-gray-500 font-medium">التقدم الإجمالي</span>
+              </div>
+              <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full transition-all duration-700 rounded-full ${
+                    successRate >= 70 ? 'bg-green-500' : 
+                    successRate >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                  }`}
+                  style={{ width: `${successRate}%` }}
+                />
+              </div>
+            </div>
+            
+            {/* Action indicator */}
+            <div className="flex items-center justify-center gap-2 text-orange-600 font-medium text-sm">
+              <span>عرض التفاصيل</span>
+              <TrendingUp className="h-4 w-4 transform group-hover:translate-x-1 transition-transform" />
             </div>
           </button>
         </DialogTrigger>
         
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle className="text-right flex items-center justify-between">
-              <span className="text-gray-500 text-sm pe-1">تقرير الطالب</span>
-              <span className="text-xl">{student.username}</span>
+        <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto mx-4 sm:mx-auto">
+          <DialogHeader className="pb-4 border-b border-gray-100">
+            <DialogTitle className="text-right flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <span className="text-gray-500 text-sm">تقرير مفصل</span>
+              <div className="flex items-center gap-3">
+                <span className="text-2xl sm:text-3xl font-bold text-gray-900">{student.display_name || student.username}</span>
+                <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center">
+                  <User className="h-5 w-5 text-orange-600" />
+                </div>
+              </div>
             </DialogTitle>
           </DialogHeader>
           
           <div className="mt-6">
-            <div className="flex justify-end gap-4 mb-6">
+            {/* Tab navigation - improved mobile design */}
+            <div className="flex justify-end gap-2 mb-6 bg-gray-50 p-1 rounded-lg">
               <button
                 type="button"
                 onClick={() => setActiveTab('overview')}
-                className={`px-4 py-2 rounded-lg transition-colors ${
+                className={`px-4 py-3 rounded-md transition-all text-sm font-medium flex-1 sm:flex-none ${
                   activeTab === 'overview' 
-                    ? 'bg-orange-50 text-orange-600' 
-                    : 'text-gray-600 hover:bg-gray-50'
+                    ? 'bg-white text-orange-600 shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
                 نظرة عامة
@@ -273,10 +323,10 @@ const Dashboard = () => {
               <button
                 type="button"
                 onClick={() => setActiveTab('report')}
-                className={`px-4 py-2 rounded-lg transition-colors ${
+                className={`px-4 py-3 rounded-md transition-all text-sm font-medium flex-1 sm:flex-none ${
                   activeTab === 'report' 
-                    ? 'bg-orange-50 text-orange-600' 
-                    : 'text-gray-600 hover:bg-gray-50'
+                    ? 'bg-white text-orange-600 shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
                 التقرير التفصيلي
@@ -285,41 +335,110 @@ const Dashboard = () => {
 
             {activeTab === 'overview' ? (
               <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-orange-50 p-4 rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="h-5 w-5 text-orange-600" />
-                      <h4 className="text-orange-600 font-semibold">معدل الإنجاز</h4>
+                {/* Main stats grid - improved responsive layout */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-xl border border-orange-200">
+                    <div className="flex items-center justify-between mb-3">
+                      <BarChart2 className="h-6 w-6 text-orange-600" />
+                      <h4 className="text-orange-700 font-semibold">معدل النجاح</h4>
                     </div>
-                    <p className="text-2xl font-bold text-orange-700">
-                      {Math.round((student.questions_answered ? (student.correct_answers / student.questions_answered * 100) : 0))}%
+                    <p className="text-3xl font-bold text-orange-800 mb-2">
+                      {Math.round((student.questions_answered > 0 ? (student.correct_answers / student.questions_answered * 100) : 0))}%
                     </p>
+                    <p className="text-xs text-orange-600">من إجمالي الأسئلة</p>
                   </div>
-                  <div className="bg-purple-50 p-4 rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="h-5 w-5 text-purple-600" />
-                      <h4 className="text-purple-600 font-semibold">متوسط التقييم</h4>
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-xl border border-purple-200">
+                    <div className="flex items-center justify-between mb-3">
+                      <Star className="h-6 w-6 text-purple-600" />
+                      <h4 className="text-purple-700 font-semibold">متوسط التقييم</h4>
                     </div>
-                    <p className="text-2xl font-bold text-purple-700">
-                      {student.average_rating || 0}/5
+                    <p className="text-3xl font-bold text-purple-800 mb-2">
+                      {student.average_rating ? student.average_rating.toFixed(1) : '0.0'}
                     </p>
+                    <p className="text-xs text-purple-600">من 5 نجوم</p>
                   </div>
-                  <div className="bg-green-50 p-4 rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <BarChart2 className="h-5 w-5 text-green-600" />
-                      <h4 className="text-green-600 font-semibold">مجموع النقاط</h4>
+                  <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-xl border border-green-200">
+                    <div className="flex items-center justify-between mb-3">
+                      <BookOpen className="h-6 w-6 text-green-600" />
+                      <h4 className="text-green-700 font-semibold">الأسئلة المنشأة</h4>
                     </div>
-                    <p className="text-2xl font-bold text-green-700">
-                      {(student.correct_answers || 0) * 10}
+                    <p className="text-3xl font-bold text-green-800 mb-2">
+                      {student.questions_created || 0}
                     </p>
+                    <p className="text-xs text-green-600">سؤال تم إنشاؤه</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl border border-blue-200">
+                    <div className="flex items-center justify-between mb-3">
+                      <User className="h-6 w-6 text-blue-600" />
+                      <h4 className="text-blue-700 font-semibold">الأسئلة المجابة</h4>
+                    </div>
+                    <p className="text-3xl font-bold text-blue-800 mb-2">
+                      {student.questions_answered || 0}
+                    </p>
+                    <p className="text-xs text-blue-600">سؤال تم الإجابة عليه</p>
+                  </div>
+                </div>
+                
+                {/* Additional stats row - improved design */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-white border border-gray-200 p-6 rounded-xl shadow-sm">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="h-10 w-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                        <BarChart2 className="h-5 w-5 text-gray-600" />
+                      </div>
+                      <h4 className="text-gray-700 font-semibold">الإجابات الصحيحة</h4>
+                    </div>
+                    <p dir='rtl' className="text-2xl font-bold text-gray-800 mb-2">
+                      {student.correct_answers || 0} من {student.questions_answered || 0}
+                    </p>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-green-500 h-2 rounded-full transition-all duration-500"
+                        style={{ 
+                          width: `${student.questions_answered > 0 ? (student.correct_answers / student.questions_answered * 100) : 0}%` 
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div className="bg-white border border-gray-200 p-6 rounded-xl shadow-sm">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="h-10 w-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                        <Star className="h-5 w-5 text-indigo-600" />
+                      </div>
+                      <h4 className="text-indigo-700 font-semibold">مجموع النقاط</h4>
+                    </div>
+                    <p dir='rtl' className="text-2xl font-bold text-indigo-800 mb-2">
+                      {(student.correct_answers || 0)} نقطة
+                    </p>
+                    <p className="text-sm text-indigo-600">بناءً على الإجابات الصحيحة</p>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="bg-white p-6 rounded-lg">
-                <p className="text-gray-800 text-right leading-relaxed whitespace-pre-wrap">
-                  {student.student_report}
-                </p>
+              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="h-10 w-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                    <FileText className="h-5 w-5 text-orange-600" />
+                  </div>
+                  <h4 className="text-lg font-semibold text-gray-800">التقرير التفصيلي للطالب</h4>
+                </div>
+                {student.student_report ? (
+                  <div className="max-h-80 overflow-y-auto">
+                    <div className="prose prose-sm max-w-none text-right">
+                      <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">
+                        {student.student_report}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <FileText className="h-8 w-8 text-gray-400" />
+                    </div>
+                    <p className="text-gray-500 font-medium">لا يوجد تقرير متاح</p>
+                    <p className="text-gray-400 text-sm mt-1">سيتم إنشاء التقرير تلقائياً عند توفر بيانات كافية</p>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -344,21 +463,25 @@ const Dashboard = () => {
         setActiveSection(id);
         if (isMobile) setIsSidebarOpen(false);
       }}
-      className={`w-full flex items-center justify-end gap-3 px-4 py-3 rounded-lg transition-all
-        ${active 
-          ? 'bg-orange-50 text-orange-600' 
-          : 'text-gray-600 hover:bg-gray-50'
-        }`}
+      className={`w-full flex items-center justify-end gap-4 px-5 py-4 rounded-xl transition-all group ${
+        active 
+          ? 'bg-orange-50 text-orange-600 shadow-sm border border-orange-200' 
+          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+      }`}
     >
       {count !== undefined && (
-        <span className={`text-xs px-2 py-1 rounded-full ${
-          active ? 'bg-orange-100' : 'bg-gray-100'
+        <span className={`text-sm px-3 py-1 rounded-full font-medium ${
+          active ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200'
         }`}>
           {count}
         </span>
       )}
-      <span className="flex-1 text-right">{label}</span>
-      <Icon className={`h-5 w-5 ${active ? 'text-orange-500' : 'text-gray-500'}`} />
+      <span className="flex-1 text-right font-medium">{label}</span>
+      <div className={`p-2 rounded-lg transition-all ${
+        active ? 'bg-orange-100' : 'bg-gray-100 group-hover:bg-gray-200'
+      }`}>
+        <Icon className={`h-5 w-5 ${active ? 'text-orange-500' : 'text-gray-500 group-hover:text-gray-700'}`} />
+      </div>
     </button>
   );
   const StudentPerformanceSelector = () => {
@@ -491,8 +614,8 @@ const Dashboard = () => {
               )}
             </Suspense>
   
-            {/* Students Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Students Grid - Enhanced responsive layout */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
               {studentsData.length > 0 ? (
                 filteredStudents.map((student) => (
                   <StudentReportCard 
@@ -501,33 +624,30 @@ const Dashboard = () => {
                   />
                 ))
               ) : (
-                // Show skeleton loaders for student cards
+                // Show skeleton loaders for student cards - improved design
                 Array(6).fill(0).map((_, index) => (
-                  <div key={index} className="bg-white rounded-lg shadow-sm hover:shadow-lg transition-all p-6 w-full">
-                    <div className="flex items-center justify-between mb-6">
-                      <div className="h-5 w-5 bg-gray-200 rounded"></div>
-                      <div className="flex items-center gap-4">
-                        <div className="h-5 w-20 bg-gray-200 rounded"></div>
-                        <div className="h-10 w-10 rounded-full bg-gray-200"></div>
+                  <div key={index} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 animate-pulse">
+                    <div className="flex items-center gap-4 mb-6">
+                      <div className="h-14 w-14 rounded-full bg-gray-200"></div>
+                      <div className="flex-1">
+                        <div className="h-5 w-32 bg-gray-200 rounded mb-2"></div>
+                        <div className="h-3 w-16 bg-gray-200 rounded"></div>
                       </div>
                     </div>
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <div className="h-5 w-8 bg-gray-200 rounded"></div>
-                        <div className="h-5 w-24 bg-gray-200 rounded"></div>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <div className="h-5 w-8 bg-gray-200 rounded"></div>
-                        <div className="h-5 w-24 bg-gray-200 rounded"></div>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <div className="h-5 w-8 bg-gray-200 rounded"></div>
-                        <div className="h-5 w-24 bg-gray-200 rounded"></div>
-                      </div>
-                      <div className="relative pt-2">
-                        <div className="h-3 w-full bg-gray-200 rounded-full"></div>
-                      </div>
+                    <div className="text-center mb-6">
+                      <div className="w-20 h-20 rounded-full bg-gray-200 mx-auto mb-2"></div>
+                      <div className="h-3 w-20 bg-gray-200 rounded mx-auto"></div>
                     </div>
+                    <div className="grid grid-cols-2 gap-3 mb-6">
+                      {Array(4).fill(0).map((_, i) => (
+                        <div key={i} className="bg-gray-100 rounded-lg p-3">
+                          <div className="h-5 w-8 bg-gray-200 rounded mb-1 mx-auto"></div>
+                          <div className="h-3 w-16 bg-gray-200 rounded mx-auto"></div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="h-3 w-full bg-gray-200 rounded-full mb-6"></div>
+                    <div className="h-3 w-24 bg-gray-200 rounded mx-auto"></div>
                   </div>
                 ))
               )}
@@ -554,9 +674,12 @@ const Dashboard = () => {
               return (
                 <div className="space-y-6">
                   {/* Students list */}
-                  <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-                    <h2 className="text-xl font-semibold text-gray-800 mb-6 text-right">قائمة الطلاب</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-100">
+                    <h2 className="text-xl font-semibold text-gray-800 mb-6 text-right flex items-center gap-2">
+                      <Users className="h-6 w-6 text-orange-500" />
+                      قائمة الطلاب
+                    </h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
                       {filteredStudents.map((student) => (
                         <StudentReportCard key={student.username} student={student} />
                       ))}
@@ -755,94 +878,99 @@ const Dashboard = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Overlay for mobile */}
+      {/* Overlay for mobile - improved touch experience */}
       {isMobile && isSidebarOpen && (
         <div 
-        className="fixed inset-0 bg-black bg-opacity-30 z-40 w-screen h-screen"
-        onClick={() => setIsSidebarOpen(false)}
-        style={{ width: '100vw', height: '100vh' }}
-      />
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-all duration-300"
+          onClick={() => setIsSidebarOpen(false)}
+          style={{ width: '100vw', height: '100vh' }}
+        />
       )}
 
-
-      {/* Sidebar */}
+      {/* Sidebar - Enhanced design and responsiveness */}
       <aside 
-        className={`fixed inset-y-0 right-0 w-72 bg-white shadow-xl z-50 transition-transform duration-300 lg:translate-x-0 ${
+        className={`fixed inset-y-0 right-0 w-80 bg-white shadow-2xl z-50 transition-all duration-300 ease-in-out lg:translate-x-0 ${
           isSidebarOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
         style={{ maxWidth: '100vw' }}
       >
-        <div className="h-full flex flex-col bg-white w-full">
-          {/* Close button for mobile */}
+        <div className="h-full flex flex-col bg-gradient-to-b from-white to-gray-50 w-full">
+          {/* Close button for mobile - improved positioning */}
           {isMobile && (
             <button
               onClick={() => setIsSidebarOpen(false)}
-              className="absolute top-4 left-4 p-2 text-gray-500 hover:text-gray-700"
+              className="absolute top-6 left-6 p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-all z-10"
             >
               <X className="h-6 w-6" />
             </button>
           )}
 
-          {/* Profile Section */}
-          <div className="p-6 border-b">
+          {/* Profile Section - Enhanced design */}
+          <div className="p-8 border-b border-gray-100 bg-gradient-to-r from-orange-50 to-orange-100">
             <div className="flex items-center gap-4 mb-4">
               <div className="flex-1 text-right">
-                <h2 className="text-xl font-semibold text-gray-800">
+                <h2 className="text-2xl font-bold text-gray-900">
                   مرحباً، {user?.username}
                 </h2>
-                <p className="text-sm text-gray-500">مدرس</p>
+                <p className="text-orange-600 font-medium">مدرس فيزياء</p>
               </div>
-              <div className="h-12 w-12 rounded-full bg-orange-100 flex items-center justify-center">
-                <User className="h-6 w-6 text-orange-600" />
+              <div className="h-16 w-16 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-lg">
+                <User className="h-8 w-8 text-white" />
               </div>
             </div>
           </div>
 
-          {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+          {/* Navigation - Improved spacing and design */}
+          <nav className="flex-1 px-6 py-8 space-y-3 overflow-y-auto">
             {menuItems.map((item) => (
               <NavItem key={item.id} {...item} />
             ))}
 
-            {/* Added Teacher Report Nav Item */}
+            {/* Teacher Report Nav Item - Enhanced design */}
             <button 
               onClick={() => setReportDialogOpen(true)}
-              className="w-full flex items-center justify-end gap-3 px-4 py-3 rounded-lg transition-all text-gray-600 hover:bg-gray-50"
+              className="w-full flex items-center justify-end gap-4 px-5 py-4 rounded-xl transition-all text-gray-600 hover:bg-orange-50 hover:text-orange-600 group"
             >
-              <span className="flex-1 text-right">تقرير المعلم</span>
-              <FileText className="h-5 w-5 text-gray-500" />
+              <span className="flex-1 text-right font-medium">تقرير المعلم</span>
+              <div className="p-2 bg-gray-100 group-hover:bg-orange-100 rounded-lg transition-all">
+                <FileText className="h-5 w-5 text-gray-500 group-hover:text-orange-500" />
+              </div>
             </button>
           </nav>
 
-          {/* Help & Logout */}
-          <div className="p-4 border-t space-y-2">
-            <button className="w-full flex items-center justify-end gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
-              <span>المساعدة</span>
-              <HelpCircle className="h-5 w-5 text-gray-500" />
+          {/* Help & Logout - Enhanced design */}
+          <div className="p-6 border-t border-gray-100 space-y-3 bg-gray-50">
+            <button className="w-full flex items-center justify-end gap-4 px-5 py-4 text-gray-600 hover:bg-white hover:text-gray-900 rounded-xl transition-all group">
+              <span className="font-medium">المساعدة</span>
+              <div className="p-2 bg-gray-200 group-hover:bg-blue-100 rounded-lg transition-all">
+                <HelpCircle className="h-5 w-5 text-gray-500 group-hover:text-blue-500" />
+              </div>
             </button>
             <button
               onClick={handleLogout}
-              className="w-full flex items-center justify-end gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              className="w-full flex items-center justify-end gap-4 px-5 py-4 text-red-600 hover:bg-red-50 rounded-xl transition-all group"
             >
-              <span>تسجيل الخروج</span>
-              <LogOut className="h-5 w-5" />
+              <span className="font-medium">تسجيل الخروج</span>
+              <div className="p-2 bg-red-100 group-hover:bg-red-200 rounded-lg transition-all">
+                <LogOut className="h-5 w-5" />
+              </div>
             </button>
           </div>
         </div>
       </aside>
 
 
-      {/* Main Content */}
-      <main className={`min-h-screen bg-gray-50 transition-all duration-300 ${isSidebarOpen ? 'lg:mr-72' : 'lg:mr-0'}`}>
-        {/* Header */}
-        <header className="bg-white shadow-sm">
+      {/* Main Content - Enhanced responsive layout */}
+      <main className={`min-h-screen bg-gray-50 transition-all duration-300 ${isSidebarOpen ? 'lg:mr-80' : 'lg:mr-0'}`}>
+        {/* Header - Improved design */}
+        <header className="bg-white shadow-sm border-b border-gray-100">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between h-16 items-center">
               {/* Left side: Toggle button and search */}
               <div className="flex items-center gap-4">
                 <button
                   onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                  className="p-2 rounded-md text-gray-500 hover:text-gray-700 focus:outline-none"
+                  className="p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 focus:outline-none transition-all"
                 >
                   {isSidebarOpen ? <ChevronRight className="h-6 w-6" /> : <ChevronLeft className="h-6 w-6" />}
                 </button>
@@ -850,26 +978,21 @@ const Dashboard = () => {
                 <div className="relative hidden md:block">
                   <input
                     type="text"
-                    placeholder="بحث..."
+                    placeholder="بحث عن طالب..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="py-2 pl-10 pr-4 w-64 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-right"
+                    className="py-2.5 pl-12 pr-4 w-80 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-right transition-all"
                   />
-                  <Search className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" />
+                  <Search className="h-5 w-5 text-gray-400 absolute left-4 top-3" />
                 </div>
               </div>
               
-              {/* Right side: Mobile menu & notification */}
+              {/* Right side: Mobile menu */}
               <div className="flex items-center gap-4">
-                {/* <button className="p-2 text-gray-500 hover:text-gray-700 relative">
-                  <Bell className="h-6 w-6" />
-                  <span className="absolute top-0 right-0 h-2 w-2 bg-orange-500 rounded-full"></span>
-                </button> */}
-                
                 {isMobile && (
                   <button
                     onClick={() => setIsSidebarOpen(true)}
-                    className="p-2 text-gray-500 hover:text-gray-700"
+                    className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-all"
                   >
                     <Menu className="h-6 w-6" />
                   </button>
@@ -879,14 +1002,14 @@ const Dashboard = () => {
           </div>
         </header>
 
-        {/* Page Content */}
+        {/* Page Content - Enhanced spacing and layout */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               {activeSection === 'home' && (
                 <button
                   onClick={() => setReportDialogOpen(true)}
-                  className="flex items-center gap-2 py-2 px-4 bg-white border border-orange-500 text-orange-600 rounded-lg hover:bg-orange-50 transition-colors text-sm"
+                  className="flex items-center gap-2 py-3 px-6 bg-white border border-orange-500 text-orange-600 rounded-xl hover:bg-orange-50 transition-all text-sm font-medium shadow-sm hover:shadow"
                 >
                   <span>عرض تقرير المعلم</span>
                   <FileText className="h-4 w-4" />
@@ -894,30 +1017,30 @@ const Dashboard = () => {
               )}
             </div>
             
-            <div className="flex items-center gap-2 text-right">
-              <h1 className="text-2xl font-bold text-gray-800">
+            <div className="flex items-center gap-3 text-right">
+              <h1 className="text-3xl font-bold text-gray-900">
                 {menuItems.find(item => item.id === activeSection)?.label}
               </h1>
               {menuItems.find(item => item.id === activeSection)?.icon && (
                 React.createElement(
                   menuItems.find(item => item.id === activeSection).icon,
-                  { className: "h-6 w-6 text-orange-500" }
+                  { className: "h-8 w-8 text-orange-500" }
                 )
               )}
             </div>
           </div>
 
-          {/* Mobile search */}
-          <div className="mb-6 block md:hidden">
+          {/* Mobile search - Enhanced design */}
+          <div className="mb-8 block md:hidden">
             <div className="relative">
               <input
                 type="text"
                 placeholder="بحث عن طالب..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full py-2 pl-10 pr-4 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-right"
+                className="w-full py-3 pl-12 pr-4 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 text-right shadow-sm"
               />
-              <Search className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" />
+              <Search className="h-5 w-5 text-gray-400 absolute left-4 top-3.5" />
             </div>
           </div>
 

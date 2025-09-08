@@ -64,8 +64,7 @@ const LessonSummary = () => {
         }
 
         const data = await response.json();
-        console.log('البيانات المستلمة:', data);
-
+        
         // تحويل البيانات الرقمية بشكل صحيح
         const processedData = {
           subject: data.subject || "physics",
@@ -77,6 +76,7 @@ const LessonSummary = () => {
         };
     
         setSummaryData(processedData);
+      
         setError(null);
       } catch (error) {
         console.error('تفاصيل الخطأ:', error);

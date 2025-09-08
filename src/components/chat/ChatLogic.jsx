@@ -83,7 +83,6 @@ export const askAboutLevel = (
   typingEffectFn,
   onLevelSelect
 ) => {
-  console.log("Asking user about level preference");
   
   typingEffectFn({
     text: `قبل أن نبدأ، أود أن أعرف مستوى معرفتك بهذا الموضوع لأتمكن من تقديم شرح يناسبك.
@@ -122,8 +121,7 @@ export const askIfChangeLevelOnGoalChange = (
     onKeepLevel,
     onChangeLevelRequest
   ) => {
-    console.log("Goal changed, asking if user wants to change level");
-    console.log("New goal:", newGoal, "Current level:", currentLevel);
+   
     
     // Get a friendly display name for the level
     const levelNames = {
@@ -170,7 +168,6 @@ export const handleLevelSelect = async (
   setCurrentLevel,
   generateNextQuestionFn
 ) => {
-  console.log("User selected level:", level);
   setCurrentLevel(level);
   addMessage({ text: `${level}`, isAI: false });
 
@@ -227,24 +224,16 @@ export const generateQuestion = async (
     setCurrentPoint // Add this parameter to track the current point
   ) => {
     try {
-      console.log("Generating question:", {
-        lesson: lessonNumber,
-        level,
-        chapter: currentChapter,
-        currentGoal,
-        afterGoalChange
-      });
+   
   
       setIsLoading(true);
   
       // Initialize goal tracker if needed
       if (!goalTracker.currentChapter || goalTracker.currentChapter !== currentChapter || 
           !goalTracker.currentLesson || goalTracker.currentLesson !== `${currentChapter}-${lessonNumber}`) {
-        console.log("Initializing goal tracker for new chapter/lesson");
         const lessonKey = `${currentChapter}-${lessonNumber}`;
         const initialGoal = goalTracker.initialize(currentChapter, lessonKey, currentGoal);
         if (initialGoal && (!currentGoal || currentGoal !== initialGoal)) {
-          console.log("Setting initial goal from tracker:", initialGoal);
           setCurrentGoal(initialGoal);
           currentGoal = initialGoal;
         }
@@ -259,7 +248,6 @@ export const generateQuestion = async (
         goal: currentGoal || goalTracker.currentGoal
       };
   
-      console.log("Sending request to generate question:", requestBody);
   
       const response = await fetch('https://scaiapipost.replit.app/generate-question', {
         method: 'POST',
@@ -276,18 +264,16 @@ export const generateQuestion = async (
       }
   
       const data = await response.json();
-      console.log("API response:", data);
   
       // Update goal tracker with the goal and point from the API response
       if (data.goal && data.goal !== goalTracker.currentGoal) {
-        console.log(`Updating goal from API: ${goalTracker.currentGoal} → ${data.goal}`);
         goalTracker.currentGoal = data.goal;
         setCurrentGoal(data.goal);
       }
   
       // If we have a point from the response, update current point
       if (data.point) {
-        console.log(`Setting current point from API: ${data.point}`);
+      
         goalTracker.setCurrentPoint(data.point);
         if (setCurrentPoint) {
           setCurrentPoint(data.point);
@@ -297,14 +283,8 @@ export const generateQuestion = async (
         const goalPoints = goalTracker.getGoalPoints();
         const pointIndex = goalPoints.indexOf(data.point);
         const isLastPoint = pointIndex === goalPoints.length - 1;
-        
-        console.log(`Current point "${data.point}" is${isLastPoint ? '' : ' not'} the last point in the goal.`);
-        console.log(`Point index: ${pointIndex + 1} of ${goalPoints.length} total points`);
-        
-        if (isLastPoint) {
-          console.log("This is the last point in the current goal!");
-          console.log("Next goal will be:", goalTracker.getNextGoal());
-        }
+      
+     
       }
   
       if (data.status === 'success' && data.question) {
@@ -312,9 +292,7 @@ export const generateQuestion = async (
         setCurrentQuestion(questionText);
         setCurrentQuestionId(data.id);
   
-        console.log("Current Question:", questionText);
-        console.log("Question ID:", data.id);
-  
+      
         // Display the introductory content (if any)
         for (let i = 0; i < data.response?.length || 0; i++) {
           const part = data.response?.[i];
@@ -394,11 +372,7 @@ export const handleAnswerSubmit = async (
     }
   ) => {
     try {
-      console.log("Submitting answer:", { 
-        answer, 
-        questionId: currentQuestionId,
-        currentPoint
-      });
+     
       
       setIsLoading(true);
       addMessage({ text: answer, isAI: false });
@@ -422,7 +396,6 @@ export const handleAnswerSubmit = async (
       }
   
       const result = await response.json();
-      console.log("Answer response:", result);
   
       if (result.explanation) {
         const formattedExplanation = result.explanation
@@ -434,13 +407,7 @@ export const handleAnswerSubmit = async (
         const nextGoal = goalTracker.getNextGoal();
         const isChangingGoal = isLastPointInGoal && nextGoal !== goalTracker.currentGoal;
         
-        console.log("Answer evaluation:", {
-          isLastPointInGoal,
-          isChangingGoal,
-          currentPoint,
-          currentGoal: goalTracker.currentGoal,
-          nextGoal
-        });
+       
   
         // Show the explanation
         await typeMessageWithEffect({
@@ -456,7 +423,6 @@ export const handleAnswerSubmit = async (
               onClick: () => {
                 // Check if we're on the last point in the goal and moving to a new goal
                 if (isChangingGoal) {
-                  console.log("Last point in goal completed, moving to next goal:", nextGoal);
                   
                   // Mark question as completed to advance the goal
                   const goalStatus = goalTracker.completeQuestion();
@@ -530,10 +496,7 @@ export const handleExplanationRequest = async (
   }
 ) => {
   try {
-    console.log("Requesting explanation for answer:", { 
-      answer, 
-      question: questionText // Use the renamed parameter
-    });
+   
     
     setIsLoading(true);
     const response = await fetch('https://scaiapipost.replit.app/explain', {
@@ -549,7 +512,6 @@ export const handleExplanationRequest = async (
     });
 
     const data = await response.json();
-    console.log("Explanation response:", data);
     
     const explanationText = Array.isArray(data.explain) 
       ? data.explain.join('\n') 
