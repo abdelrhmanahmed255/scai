@@ -5,7 +5,7 @@ import {
   Users, Settings, LogOut, Menu, X, Bell,
   User, Search, BarChart2, Home, BookOpen,
   ChevronRight, ChevronLeft,ChevronDown , HelpCircle, FileText,
-  Star,TrendingUp // Added Star import here
+  Star,TrendingUp, Plus, CheckCircle // Added required icons
 } from 'lucide-react';
 import {
   Dialog,
@@ -90,7 +90,7 @@ const chaptersData = {
   }, [isSidebarOpen]);
 
   useEffect(() => {
-    // Set isLoading to false immediately to show the UI
+    // Show UI immediately - no loading state for better UX
     setIsLoading(false);
     
     // Use AbortController for fetchable requests
@@ -99,7 +99,7 @@ const chaptersData = {
     
     const fetchData = async () => {
       try {
-        // Fetch and process students data
+        // Fetch students data with optimized request
         const studentsResponse = await fetch('https://scaiapipost.replit.app/users-info', {
           method: 'POST',
           headers: {
@@ -114,25 +114,45 @@ const chaptersData = {
         }
         
         const studentsData = await studentsResponse.json();
-        setStudentsData(studentsData.users || []);
-        console.log('Students data fetched:', studentsData);
         
-        // Fetch teacher report in the background
-        const teacherResponse = await fetch('https://scaiapipost.replit.app/teacher-report', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-          },
-          signal
-        });
+        // Process and optimize data immediately
+        const processedStudents = (studentsData.users || []).map(student => ({
+          ...student,
+          // Ensure all numeric fields are numbers
+          questions_created: parseInt(student.questions_created) || 0,
+          questions_answered: parseInt(student.questions_answered) || 0,
+          correct_answers: parseInt(student.correct_answers) || 0,
+          average_rating: parseFloat(student.average_rating) || 0,
+          // Pre-calculate success rate for performance
+          success_rate: student.questions_answered > 0 
+            ? Math.round((student.correct_answers / student.questions_answered) * 100) 
+            : 0
+        }));
         
-        if (teacherResponse.ok) {
-          const teacherData = await teacherResponse.json();
-          setTeacherReport(teacherData.message);
-              
-
-        }
+        setStudentsData(processedStudents);
+        
+        // Fetch teacher report in background - non-blocking
+        setTimeout(async () => {
+          try {
+            const teacherResponse = await fetch('https://scaiapipost.replit.app/teacher-report', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+              },
+              signal
+            });
+            
+            if (teacherResponse.ok) {
+              const teacherData = await teacherResponse.json();
+              setTeacherReport(teacherData.message);
+            }
+          } catch (error) {
+            if (error.name !== 'AbortError') {
+              console.warn('Teacher report failed to load:', error);
+            }
+          }
+        }, 100); // Small delay to prioritize students data
         
       } catch (error) {
         if (error.name !== 'AbortError') {
@@ -165,22 +185,105 @@ const chaptersData = {
     }
   };
 
-  // Memoized stats calculation
+  // Fixed stats calculation - using totals instead of averages
   const overallStats = useMemo(() => {
     if (studentsData.length === 0) return [];
     
     const totalStudents = studentsData.length;
-    const avgQuestionsCreated = studentsData.reduce((acc, curr) => acc + curr.questions_created, 0) / totalStudents;
-    const avgQuestionsAnswered = studentsData.reduce((acc, curr) => acc + curr.questions_answered, 0) / totalStudents;
-    const avgCorrect = studentsData.reduce((acc, curr) => acc + curr.correct_answers, 0) / totalStudents;
-    const avgRating = studentsData.reduce((acc, curr) => acc + curr.average_rating, 0) / totalStudents;
+    const totalQuestionsCreated = studentsData.reduce((acc, curr) => acc + (curr.questions_created || 0), 0);
+    const totalQuestionsAnswered = studentsData.reduce((acc, curr) => acc + (curr.questions_answered || 0), 0);
+    const totalCorrectAnswers = studentsData.reduce((acc, curr) => acc + (curr.correct_answers || 0), 0);
+    const avgRating = studentsData.length > 0 
+      ? studentsData.reduce((acc, curr) => acc + (curr.average_rating || 0), 0) / totalStudents
+      : 0;
 
     return [
-      { name: 'عدد الأسئلة المنشأة', value: Math.round(avgQuestionsCreated * 10) / 10 },
-      { name: 'عدد الأسئلة المجاب عليها', value: Math.round(avgQuestionsAnswered * 10) / 10 },
-      { name: 'عدد الإجابات الصحيحة', value: Math.round(avgCorrect * 10) / 10 },
-      { name: 'متوسط التقييم', value: Math.round(avgRating * 10) / 10 }
+      { 
+        name: 'إجمالي الطلاب', 
+        value: totalStudents,
+        icon: 'users',
+        color: 'blue'
+      },
+      { 
+        name: 'إجمالي الأسئلة المنشأة', 
+        value: totalQuestionsCreated,
+        icon: 'plus',
+        color: 'green'
+      },
+      { 
+        name: 'إجمالي الأسئلة المجابة', 
+        value: totalQuestionsAnswered,
+        icon: 'check',
+        color: 'orange'
+      },
+      { 
+        name: 'إجمالي الإجابات الصحيحة', 
+        value: totalCorrectAnswers,
+        icon: 'star',
+        color: 'purple'
+      },
+      { 
+        name: 'متوسط التقييم العام', 
+        value: Math.round(avgRating * 10) / 10,
+        icon: 'trending',
+        color: 'indigo'
+      },
+      { 
+        name: 'معدل النجاح العام', 
+        value: totalQuestionsAnswered > 0 
+          ? Math.round((totalCorrectAnswers / totalQuestionsAnswered) * 100) 
+          : 0,
+        suffix: '%',
+        icon: 'chart',
+        color: 'red'
+      }
     ];
+  }, [studentsData]);
+
+  // Enhanced analytics calculations - moved outside renderSectionContent to fix hooks issue
+  const analyticsData = useMemo(() => {
+    if (studentsData.length === 0) return null;
+    
+    const activeStudents = studentsData.filter(s => s.questions_answered > 0);
+    const totalQuestions = studentsData.reduce((acc, curr) => acc + (curr.questions_answered || 0), 0);
+    const totalCorrect = studentsData.reduce((acc, curr) => acc + (curr.correct_answers || 0), 0);
+    const averagePerformance = totalQuestions > 0 ? (totalCorrect / totalQuestions) * 100 : 0;
+    
+    // Performance distribution
+    const performanceRanges = {
+      excellent: studentsData.filter(s => {
+        const rate = s.questions_answered > 0 ? (s.correct_answers / s.questions_answered) * 100 : 0;
+        return rate >= 90;
+      }).length,
+      good: studentsData.filter(s => {
+        const rate = s.questions_answered > 0 ? (s.correct_answers / s.questions_answered) * 100 : 0;
+        return rate >= 70 && rate < 90;
+      }).length,
+      average: studentsData.filter(s => {
+        const rate = s.questions_answered > 0 ? (s.correct_answers / s.questions_answered) * 100 : 0;
+        return rate >= 50 && rate < 70;
+      }).length,
+      needsImprovement: studentsData.filter(s => {
+        const rate = s.questions_answered > 0 ? (s.correct_answers / s.questions_answered) * 100 : 0;
+        return rate < 50 && s.questions_answered > 0;
+      }).length
+    };
+
+    return {
+      activeStudents: activeStudents.length,
+      totalStudents: studentsData.length,
+      averagePerformance: Math.round(averagePerformance),
+      performanceRanges,
+      engagementRate: Math.round((activeStudents.length / studentsData.length) * 100),
+      topPerformers: studentsData
+        .filter(s => s.questions_answered > 0)
+        .sort((a, b) => {
+          const aRate = a.correct_answers / a.questions_answered;
+          const bRate = b.correct_answers / b.questions_answered;
+          return bRate - aRate;
+        })
+        .slice(0, 5)
+    };
   }, [studentsData]);
 
   const COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4'];
@@ -206,7 +309,6 @@ const chaptersData = {
             onClick={() => {
               setSelectedStudent(student);
               setDialogOpen(true);
-              console.log('Student data:', student); // Debug log
             }}
             className="group bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 p-6 w-full text-left border border-gray-100 hover:border-orange-200 transform hover:-translate-y-1"
           >
@@ -355,7 +457,7 @@ const chaptersData = {
                     <p className="text-3xl font-bold text-purple-800 mb-2">
                       {student.average_rating ? student.average_rating.toFixed(1) : '0.0'}
                     </p>
-                    <p className="text-xs text-purple-600">من 5 نجوم</p>
+                    <p className="text-xs text-purple-600">من 10 نجوم</p>
                   </div>
                   <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-xl border border-green-200">
                     <div className="flex items-center justify-between mb-3">
@@ -579,40 +681,193 @@ const chaptersData = {
       case 'home':
         return (
           <>
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {/* Enhanced Stats Cards with Icons and Colors */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
               {studentsData.length > 0 ? (
-                overallStats.map((stat, index) => (
-                  <div key={index} className="bg-white rounded-lg shadow-sm p-6">
-                    <h3 className="text-sm text-gray-600 mb-2 text-right">{stat.name}</h3>
-                    <p className="text-2xl font-semibold text-gray-800">{stat.value}</p>
-                  </div>
-                ))
+                overallStats.map((stat, index) => {
+                  const getIconByType = (iconType) => {
+                    switch(iconType) {
+                      case 'users': return Users;
+                      case 'plus': return Plus;
+                      case 'check': return CheckCircle;
+                      case 'star': return Star;
+                      case 'trending': return TrendingUp;
+                      case 'chart': return BarChart2;
+                      default: return BarChart2;
+                    }
+                  };
+
+                  const getColorClasses = (color) => {
+                    const colors = {
+                      blue: 'from-blue-500 to-blue-600 bg-blue-50 text-blue-700 border-blue-200',
+                      green: 'from-green-500 to-green-600 bg-green-50 text-green-700 border-green-200',
+                      orange: 'from-orange-500 to-orange-600 bg-orange-50 text-orange-700 border-orange-200',
+                      purple: 'from-purple-500 to-purple-600 bg-purple-50 text-purple-700 border-purple-200',
+                      indigo: 'from-indigo-500 to-indigo-600 bg-indigo-50 text-indigo-700 border-indigo-200',
+                      red: 'from-red-500 to-red-600 bg-red-50 text-red-700 border-red-200'
+                    };
+                    return colors[color] || colors.blue;
+                  };
+
+                  const IconComponent = getIconByType(stat.icon);
+                  const colorClasses = getColorClasses(stat.color);
+
+                  return (
+                    <div key={index} className={`bg-white rounded-xl shadow-sm border p-6 hover:shadow-lg transition-all duration-300 ${colorClasses.split(' ').slice(2).join(' ')}`}>
+                      <div className="flex items-center justify-between mb-4">
+                        <div className={`h-12 w-12 rounded-lg bg-gradient-to-r ${colorClasses.split(' ').slice(0, 2).join(' ')} flex items-center justify-center shadow-lg`}>
+                          <IconComponent className="h-6 w-6 text-white" />
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <h3 className="text-sm font-medium text-gray-600 mb-2 leading-tight">{stat.name}</h3>
+                        <p className="text-2xl font-bold text-gray-900">
+                          {stat.value}{stat.suffix || ''}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })
               ) : (
-                // Show skeleton loaders for stats
-                Array(4).fill(0).map((_, index) => (
-                  <div key={index} className="bg-white rounded-lg shadow-sm p-6">
-                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2 ml-auto"></div>
-                    <div className="h-8 bg-gray-200 rounded w-1/3"></div>
+                // Enhanced skeleton loaders for stats
+                Array(6).fill(0).map((_, index) => (
+                  <div key={index} className="bg-white rounded-xl shadow-sm border p-6 animate-pulse">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="h-12 w-12 rounded-lg bg-gray-200"></div>
+                    </div>
+                    <div className="text-right">
+                      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2 ml-auto"></div>
+                      <div className="h-8 bg-gray-200 rounded w-1/2 ml-auto"></div>
+                    </div>
                   </div>
                 ))
               )}
             </div>
-  
-            {/* Charts */}
-            <Suspense fallback={
-              <div className="bg-white rounded-lg shadow-sm p-6 mb-8 flex items-center justify-center h-80">
-                <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
-              </div>
-            }>
-              {studentsData.length > 0 ? (
-                <ChartComponents overallStats={overallStats} colors={COLORS} />
-              ) : (
-                <div className="bg-white rounded-lg shadow-sm p-6 mb-8 flex items-center justify-center h-80">
-                  <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+
+            {/* Quick Insights Section */}
+            {studentsData.length > 0 && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                {/* Top Performers */}
+                <div className="bg-white rounded-xl shadow-sm border p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center">
+                      <TrendingUp className="h-5 w-5 text-green-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900">أفضل الطلاب أداءً</h3>
+                  </div>
+                  <div className="space-y-3">
+                    {filteredStudents
+                      .sort((a, b) => {
+                        const aRate = a.questions_answered > 0 ? (a.correct_answers / a.questions_answered) : 0;
+                        const bRate = b.questions_answered > 0 ? (b.correct_answers / b.questions_answered) : 0;
+                        return bRate - aRate;
+                      })
+                      .slice(0, 3)
+                      .map((student, index) => {
+                        const successRate = student.questions_answered > 0 
+                          ? Math.round((student.correct_answers / student.questions_answered) * 100) 
+                          : 0;
+                        return (
+                          <div key={student.username} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${
+                                index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : 'bg-orange-400'
+                              }`}>
+                                {index + 1}
+                              </div>
+                              <span className="font-medium text-gray-900">{student.display_name || student.username}</span>
+                            </div>
+                            <span className="text-green-600 font-semibold">{successRate}%</span>
+                          </div>
+                        );
+                      })}
+                  </div>
                 </div>
-              )}
-            </Suspense>
+
+                {/* Activity Summary */}
+                <div className="bg-white rounded-xl shadow-sm border p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <BarChart2 className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900">ملخص النشاط</h3>
+                  </div>
+                  <div className="space-y-4">
+                    {[
+                      {
+                        label: 'الطلاب النشطون',
+                        value: filteredStudents.filter(s => s.questions_answered > 0).length,
+                        total: filteredStudents.length,
+                        color: 'bg-blue-500'
+                      },
+                      {
+                        label: 'معدل الإجابة',
+                        value: filteredStudents.reduce((acc, curr) => acc + (curr.correct_answers || 0), 0),
+                        total: filteredStudents.reduce((acc, curr) => acc + (curr.questions_answered || 0), 0),
+                        color: 'bg-green-500'
+                      }
+                    ].map((item, index) => (
+                      <div key={index} className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">{item.label}</span>
+                          <span className="font-medium">{item.value} / {item.total}</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className={`h-2 rounded-full ${item.color} transition-all duration-500`}
+                            style={{ width: `${item.total > 0 ? (item.value / item.total) * 100 : 0}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Recent Activity */}
+                <div className="bg-white rounded-xl shadow-sm border p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="h-10 w-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                      <Users className="h-5 w-5 text-orange-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900">النشاط الأخير</h3>
+                  </div>
+                  <div className="space-y-3">
+                    {filteredStudents
+                      .filter(s => s.questions_answered > 0)
+                      .slice(0, 4)
+                      .map((student) => (
+                        <div key={student.username} className="flex items-center gap-3 p-2">
+                          <div className="h-8 w-8 bg-orange-100 rounded-full flex items-center justify-center">
+                            <User className="h-4 w-4 text-orange-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">
+                              {student.display_name || student.username}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              أجاب على {student.questions_answered} سؤال
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              </div>
+            )}
+  
+            {/* Charts - Optimized loading */}
+            {studentsData.length > 0 && (
+              <Suspense fallback={
+                <div className="bg-white rounded-xl shadow-sm border p-6 mb-8 flex items-center justify-center h-80">
+                  <div className="text-center">
+                    <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-gray-500">جاري تحميل الرسوم البيانية...</p>
+                  </div>
+                </div>
+              }>
+                <ChartComponents overallStats={overallStats} colors={COLORS} />
+              </Suspense>
+            )}
   
             {/* Students Grid - Enhanced responsive layout */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
@@ -693,26 +948,223 @@ const chaptersData = {
           
       case 'analytics':
         return (
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <h2 className="text-xl font-semibold text-gray-800 mb-6 text-right">تحليلات الأداء</h2>
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {overallStats.map((stat, index) => (
-                <div key={index} className="bg-white rounded-lg shadow-sm border p-6">
-                  <h3 className="text-sm text-gray-600 mb-2 text-right">{stat.name}</h3>
-                  <p className="text-2xl font-semibold text-gray-800">{stat.value}</p>
+          <div className="space-y-6">
+            {/* Enhanced Analytics Header */}
+            <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl p-6 text-white">
+              <div className="flex items-center justify-end">
+                <div  className="text-right">
+                  <h2 className="text-2xl font-bold mb-2">تحليلات شاملة للأداء</h2>
+                  <p className="text-orange-100">نظرة متعمقة على أداء الطلاب والإحصائيات</p>
                 </div>
-              ))}
+                <BarChart2 className="h-12 w-12 text-orange-200" />
+              </div>
             </div>
 
-            {/* Lazy-loaded Charts */}
-            <Suspense fallback={
-              <div className="bg-white border rounded-lg shadow-sm p-6 mb-8 flex items-center justify-center h-80">
-                <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+            {analyticsData && (
+              <>
+                {/* Key Performance Indicators */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="bg-white rounded-xl shadow-sm border p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <Users className="h-6 w-6 text-blue-600" />
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <h3 className="text-sm font-medium text-gray-600 mb-1">معدل المشاركة</h3>
+                      <p className="text-3xl font-bold text-blue-600">{analyticsData?.engagementRate || 0}%</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {analyticsData?.activeStudents || 0} من {analyticsData?.totalStudents || 0} طالب
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-xl shadow-sm border p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
+                        <TrendingUp className="h-6 w-6 text-green-600" />
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <h3 className="text-sm font-medium text-gray-600 mb-1">متوسط الأداء العام</h3>
+                      <p className="text-3xl font-bold text-green-600">{analyticsData?.averagePerformance || 0}%</p>
+                      <p className="text-xs text-gray-500 mt-1">من إجمالي الإجابات</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-xl shadow-sm border p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                        <Star className="h-6 w-6 text-purple-600" />
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <h3 className="text-sm font-medium text-gray-600 mb-1">المتفوقون</h3>
+                      <p className="text-3xl font-bold text-purple-600">{analyticsData?.performanceRanges?.excellent || 0}</p>
+                      <p className="text-xs text-gray-500 mt-1">90% فما فوق</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-xl shadow-sm border p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="h-12 w-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                        <BookOpen className="h-6 w-6 text-orange-600" />
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <h3 className="text-sm font-medium text-gray-600 mb-1">يحتاجون تحسين</h3>
+                      <p className="text-3xl font-bold text-orange-600">{analyticsData?.performanceRanges?.needsImprovement || 0}</p>
+                      <p className="text-xs text-gray-500 mt-1">أقل من 50%</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Performance Distribution */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="bg-white rounded-xl shadow-sm border p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-6 text-right">توزيع مستويات الأداء</h3>
+                    <div className="space-y-4">
+                      {[
+                        { label: 'ممتاز (90% فما فوق)', count: analyticsData?.performanceRanges?.excellent || 0, color: 'bg-green-500', textColor: 'text-green-700' },
+                        { label: 'جيد (70% - 89%)', count: analyticsData?.performanceRanges?.good || 0, color: 'bg-blue-500', textColor: 'text-blue-700' },
+                        { label: 'متوسط (50% - 69%)', count: analyticsData?.performanceRanges?.average || 0, color: 'bg-yellow-500', textColor: 'text-yellow-700' },
+                        { label: 'يحتاج تحسين (أقل من 50%)', count: analyticsData?.performanceRanges?.needsImprovement || 0, color: 'bg-red-500', textColor: 'text-red-700' }
+                      ].map((item, index) => (
+                        <div key={index} className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className={`font-medium ${item.textColor}`}>{item.count}</span>
+                            <span className="text-gray-700 text-sm">{item.label}</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-3">
+                            <div 
+                              className={`h-3 rounded-full ${item.color} transition-all duration-700`}
+                              style={{ 
+                                width: `${(analyticsData?.totalStudents || 0) > 0 ? (item.count / (analyticsData?.totalStudents || 1)) * 100 : 0}%` 
+                              }}
+                            />
+                          </div>
+                          <div className="text-xs text-gray-500 text-right">
+                            {(analyticsData?.totalStudents || 0) > 0 ? Math.round((item.count / (analyticsData?.totalStudents || 1)) * 100) : 0}% من إجمالي الطلاب
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Top Performers List */}
+                  <div className="bg-white rounded-xl shadow-sm border p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-6 text-right">قائمة المتفوقين</h3>
+                    <div className="space-y-3">
+                      {(analyticsData?.topPerformers || []).map((student, index) => {
+                        const successRate = student.questions_answered > 0 
+                          ? Math.round((student.correct_answers / student.questions_answered) * 100) 
+                          : 0;
+                        return (
+                          <div key={student.username} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white ${
+                                index === 0 ? 'bg-yellow-500' : 
+                                index === 1 ? 'bg-gray-400' : 
+                                index === 2 ? 'bg-orange-400' : 'bg-blue-400'
+                              }`}>
+                                {index + 1}
+                              </div>
+                              <div className="text-right">
+                                <p className="font-medium text-gray-900">{student.display_name || student.username}</p>
+                                <p className="text-sm text-gray-500">
+                                  {student.correct_answers || 0} / {student.questions_answered || 0} صحيح
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <span className={`text-lg font-bold ${
+                                successRate >= 90 ? 'text-green-600' : 
+                                successRate >= 70 ? 'text-blue-600' : 'text-yellow-600'
+                              }`}>
+                                {successRate}%
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Overall Statistics Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                  {overallStats.map((stat, index) => {
+                    const getIconByType = (iconType) => {
+                      switch(iconType) {
+                        case 'users': return Users;
+                        case 'plus': return Plus;
+                        case 'check': return CheckCircle;
+                        case 'star': return Star;
+                        case 'trending': return TrendingUp;
+                        case 'chart': return BarChart2;
+                        default: return BarChart2;
+                      }
+                    };
+
+                    const getColorClasses = (color) => {
+                      const colors = {
+                        blue: 'from-blue-500 to-blue-600 bg-blue-50 text-blue-700 border-blue-200',
+                        green: 'from-green-500 to-green-600 bg-green-50 text-green-700 border-green-200',
+                        orange: 'from-orange-500 to-orange-600 bg-orange-50 text-orange-700 border-orange-200',
+                        purple: 'from-purple-500 to-purple-600 bg-purple-50 text-purple-700 border-purple-200',
+                        indigo: 'from-indigo-500 to-indigo-600 bg-indigo-50 text-indigo-700 border-indigo-200',
+                        red: 'from-red-500 to-red-600 bg-red-50 text-red-700 border-red-200'
+                      };
+                      return colors[color] || colors.blue;
+                    };
+
+                    const IconComponent = getIconByType(stat.icon);
+                    const colorClasses = getColorClasses(stat.color);
+
+                    return (
+                      <div key={index} className={`bg-white rounded-xl shadow-sm border p-4 hover:shadow-lg transition-all duration-300 ${colorClasses.split(' ').slice(2).join(' ')}`}>
+                        <div className="flex items-center justify-between mb-3">
+                          <div className={`h-10 w-10 rounded-lg bg-gradient-to-r ${colorClasses.split(' ').slice(0, 2).join(' ')} flex items-center justify-center shadow-lg`}>
+                            <IconComponent className="h-5 w-5 text-white" />
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <h3 className="text-xs font-medium text-gray-600 mb-1 leading-tight">{stat.name}</h3>
+                          <p className="text-xl font-bold text-gray-900">
+                            {stat.value}{stat.suffix || ''}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+
+            {/* Fallback when no data */}
+            {!analyticsData && (
+              <div className="bg-white rounded-xl shadow-sm border p-12 text-center">
+                <div className="text-gray-400 mb-4">
+                  <BarChart2 className="h-16 w-16 mx-auto" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-600 mb-2">لا توجد بيانات للتحليل</h3>
+                <p className="text-gray-500">سيتم عرض التحليلات عند توفر بيانات الطلاب</p>
               </div>
-            }>
-              <ChartComponents overallStats={overallStats} colors={COLORS} />
-            </Suspense>
+            )}
+
+            {/* Charts - Only load if data exists */}
+            {studentsData.length > 0 && (
+              <Suspense fallback={
+                <div className="bg-white rounded-xl shadow-sm border p-6 flex items-center justify-center h-80">
+                  <div className="text-center">
+                    <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-gray-500">جاري تحميل الرسوم البيانية...</p>
+                  </div>
+                </div>
+              }>
+                <ChartComponents overallStats={overallStats} colors={COLORS} />
+              </Suspense>
+            )}
           </div>
         );
       
