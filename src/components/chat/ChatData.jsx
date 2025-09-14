@@ -34,6 +34,64 @@ export const chaptersData = {
       }
     }
   };
+
+  /**
+   * Get available goals for a specific chapter and lesson
+   * @param {string} chapter - Chapter number (1, 2, 3, 4)
+   * @param {string} lesson - Lesson number (1, 2, 3, 4)
+   * @returns {Object} Object with goal keys and their descriptions
+   */
+  export const getGoalsForLesson = (chapter, lesson) => {
+    try {
+      const goalData = chaptersGoalData[chapter]?.[lesson];
+      if (!goalData) return {};
+
+      const goals = {};
+      Object.keys(goalData).forEach(goalKey => {
+        if (goalKey.startsWith('goal') && goalData[goalKey]?.length > 0) {
+          // Get the first point as the main goal description
+          goals[goalKey] = {
+            title: goalData[goalKey][0] || `الهدف ${goalKey.replace('goal', '')}`,
+            points: goalData[goalKey],
+            pointCount: goalData[goalKey].length
+          };
+        }
+      });
+      
+      return goals;
+    } catch (error) {
+      console.error('Error getting goals for lesson:', error);
+      return {};
+    }
+  };
+
+  /**
+   * Get a formatted goal display name
+   * @param {string} goalKey - Goal key (goal1, goal2, etc.)
+   * @param {string} chapter - Chapter number
+   * @param {string} lesson - Lesson number
+   * @returns {string} Formatted goal name
+   */
+  export const getGoalDisplayName = (goalKey, chapter, lesson) => {
+    const goalData = getGoalsForLesson(chapter, lesson);
+    const goal = goalData[goalKey];
+    
+    if (goal) {
+      const goalNumber = goalKey.replace('goal', '');
+      return `الهدف ${goalNumber}: ${goal.title}`;
+    }
+    
+    return `الهدف ${goalKey.replace('goal', '')}`;
+  };
+
+  /**
+   * Convert lesson key (like "1-1") to just lesson number for backend
+   * @param {string} lessonKey - Lesson key format "chapter-lesson"
+   * @returns {string} Just the lesson number
+   */
+  export const getLessonNumber = (lessonKey) => {
+    return lessonKey.split('-')[1] || lessonKey;
+  };
   export const chaptersGoalData = {
     "1": {
       "title": "حالات المادة",

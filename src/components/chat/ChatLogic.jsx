@@ -166,7 +166,8 @@ export const handleLevelSelect = async (
   typingEffectFn,
   setCurrentGoal,
   setCurrentLevel,
-  generateNextQuestionFn
+  generateNextQuestionFn,
+  goalKey = null // Add goalKey parameter
 ) => {
   setCurrentLevel(level);
   addMessage({ text: `${level}`, isAI: false });
@@ -182,7 +183,7 @@ export const handleLevelSelect = async (
     isAI: true
   }, addMessage, updateMessage);
 
-  // Generate the first question
+  // Generate the first question with the selected goal
   const lessonNumber = lessonKey.split('-')[1];
   await generateQuestion(
     lessonNumber,
@@ -195,7 +196,7 @@ export const handleLevelSelect = async (
     addMessage,
     updateMessage,
     typingEffectFn,
-    null, // Initially no goal
+    goalKey, // Pass the goal key
     setCurrentGoal,
     generateNextQuestionFn,
     false // Not after goal change
@@ -217,14 +218,13 @@ export const generateQuestion = async (
     addMessage,
     updateMessage,
     typingEffectFn,
-    currentGoal,
+    currentGoal, // This should be the goal key like "goal1", "goal2"
     setCurrentGoal,
     nextQuestionCallback,
     afterGoalChange = false,
     setCurrentPoint // Add this parameter to track the current point
   ) => {
     try {
-   
   
       setIsLoading(true);
   
@@ -245,9 +245,10 @@ export const generateQuestion = async (
         chapter: currentChapter,
         lesson: lessonNumber,
         level: level,
-        goal: currentGoal || goalTracker.currentGoal
+        goal: currentGoal || goalTracker.currentGoal // Send goal in format "goal1", "goal2", etc.
       };
-  
+
+      console.log('Sending request to generate question:', requestBody);
   
       const response = await fetch('https://scaiapipost.replit.app/generate-question', {
         method: 'POST',
@@ -264,6 +265,7 @@ export const generateQuestion = async (
       }
   
       const data = await response.json();
+      console.log('Generated question response:', data);
   
       // Update goal tracker with the goal and point from the API response
       if (data.goal && data.goal !== goalTracker.currentGoal) {
@@ -273,7 +275,6 @@ export const generateQuestion = async (
   
       // If we have a point from the response, update current point
       if (data.point) {
-      
         goalTracker.setCurrentPoint(data.point);
         if (setCurrentPoint) {
           setCurrentPoint(data.point);
@@ -283,8 +284,6 @@ export const generateQuestion = async (
         const goalPoints = goalTracker.getGoalPoints();
         const pointIndex = goalPoints.indexOf(data.point);
         const isLastPoint = pointIndex === goalPoints.length - 1;
-      
-     
       }
   
       if (data.status === 'success' && data.question) {
@@ -292,7 +291,6 @@ export const generateQuestion = async (
         setCurrentQuestion(questionText);
         setCurrentQuestionId(data.id);
   
-      
         // Display the introductory content (if any)
         for (let i = 0; i < data.response?.length || 0; i++) {
           const part = data.response?.[i];

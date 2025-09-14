@@ -6,6 +6,7 @@ import { useChat } from '../../contexts/ChatContext';
 import AnswerInput from './AnswerInput';
 import { Message, SelectionButton, LoadingMessage } from './MessageComponents';
 import { Navigation, Header } from './NavigationComponents';
+import GoalSelection from './GoalSelection';
 import { 
   typeMessageWithEffect, 
   askAboutLevel,
@@ -15,18 +16,18 @@ import {
   handleExplanationRequest,
   askIfChangeLevelOnGoalChange
 } from './ChatLogic';
-import { chaptersData } from './ChatData';
+import { chaptersData, getGoalsForLesson, getGoalDisplayName, getLessonNumber } from './ChatData';
 import { goalTracker } from './ChatGoalTracker';
 
 const HierarchicalChat = () => {
   const { user } = useAuth();
-  const { messages, addMessage, updateMessage, currentSubject, currentChapter, currentLesson, setCurrentSelection, clearSelection } = useChat();
+  const { messages, addMessage, updateMessage, currentSubject, currentChapter, currentLesson, currentGoal, setCurrentSelection, clearSelection } = useChat();
   const [isLoading, setIsLoading] = useState(false);
   const [selectionStage, setSelectionStage] = useState('chapter');
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [currentLevel, setCurrentLevel] = useState(null);
   const [currentQuestionId, setCurrentQuestionId] = useState(null);
-  const [currentGoal, setCurrentGoal] = useState(null);
+  const [currentGoalState, setCurrentGoalState] = useState(null);
   const [isFirstQuestion, setIsFirstQuestion] = useState(true);
   const chatEndRef = useRef(null);
   const { logout } = useAuth();
@@ -39,13 +40,40 @@ const HierarchicalChat = () => {
     academicYear: '2025'
   });
 
+  // Initialize selection stage based on current state
+  useEffect(() => {
+    if (!currentSubject) {
+      navigate('/subjects', { replace: true });
+      return;
+    }
+
+    if (!currentChapter) {
+      setSelectionStage('chapter');
+      // Add welcome message for chapter selection
+      if (messages.length === 0) {
+        addMessage({
+          text: 'مرحباً بك في منصة SCAI للتعليم الذكي! الرجاء اختيار الفصل الذي تريد دراسته.',
+          isAI: true,
+          isFirstMessage: true
+        });
+      }
+    } else if (!currentLesson) {
+      setSelectionStage('lesson');
+    } else if (!currentGoal) {
+      setSelectionStage('goal');
+    } else {
+      setSelectionStage('chat');
+    }
+  }, [currentSubject, currentChapter, currentLesson, currentGoal, navigate, addMessage, messages.length]);
+
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   const generateNextQuestion = useCallback(async () => {
+    const lessonNumber = getLessonNumber(currentLesson);
     const result = await generateQuestion(
-      currentLesson.split('-')[1],
+      lessonNumber,
       currentLevel,
       user,
       currentChapter,
@@ -55,59 +83,73 @@ const HierarchicalChat = () => {
       addMessage,
       updateMessage,
       typeMessageWithEffect,
-      currentGoal,
-      setCurrentGoal,
+      currentGoal, // Use the goal from context
+      setCurrentGoalState,
       generateNextQuestion,
       false,
-      setCurrentPoint // Pass the setter for currentPoint
+      setCurrentPoint
     );
     
-    // Store any returned data if needed
     if (result && result.currentPoint) {
       setCurrentPoint(result.currentPoint);
     }
   }, [currentLesson, currentLevel, user, currentChapter, currentGoal]);
 
   const handleChapterSelect = (chapter) => {
-    setCurrentSelection(currentSubject, chapter, null);
+    setCurrentSelection(currentSubject, chapter, null, null);
     setSelectionStage('lesson');
     addMessage({ text: `اخترت ${chaptersData[chapter].title}`, isAI: false });
     addMessage({ 
-      text: 'الرجاء اختيار الدرس الذي تريد دراسته',
+      text: 'ممتاز! الآن الرجاء اختيار الدرس الذي تريد دراسته',
       isAI: true 
     });
   };
 
-  const handleLessonSelect = async (lessonKey) => {
+  const handleLessonSelect = (lessonKey) => {
+    setCurrentSelection(currentSubject, currentChapter, lessonKey, null);
+    setSelectionStage('goal');
+    
+    const lessonTitle = chaptersData[currentChapter].lessons[lessonKey];
+    addMessage({ text: `اخترت الدرس: ${lessonTitle}`, isAI: false });
+    addMessage({ 
+      text: 'رائع! الآن الرجاء اختيار الهدف التعليمي الذي تريد التركيز عليه',
+      isAI: true 
+    });
+  };
+
+  const handleGoalSelect = async (goalKey) => {
     try {
-      setCurrentSelection(currentSubject, currentChapter, lessonKey);
+      setCurrentSelection(currentSubject, currentChapter, currentLesson, goalKey);
       setSelectionStage('chat');
       setIsFirstQuestion(true);
-  
-      const lessonTitle = chaptersData[currentChapter].lessons[lessonKey];
-  
+
+      const goalDisplayName = getGoalDisplayName(goalKey, currentChapter, getLessonNumber(currentLesson));
+      const lessonTitle = chaptersData[currentChapter].lessons[currentLesson];
+
+      addMessage({ text: `اخترت ${goalDisplayName}`, isAI: false });
+
       // Initialize the goal tracker
-      const lessonNumber = lessonKey.split('-')[1]; // e.g., "1" from "1-1"
-      goalTracker.initialize(currentChapter, lessonNumber);
-      setCurrentGoal(goalTracker.currentGoal);
-  
+      const lessonNumber = getLessonNumber(currentLesson);
+      goalTracker.initialize(currentChapter, lessonNumber, goalKey);
+      setCurrentGoalState(goalTracker.currentGoal);
+
       // Welcome message
       addMessage({
-        text: `مرحباً بك أنا SCAI مساعدك الذكي في تعلم الفيزياء
-  اليوم سنتعلم عن ${lessonTitle}`,
+        text: `مرحباً بك! أنا SCAI مساعدك الذكي في تعلم الفيزياء
+اليوم سنتعلم عن ${lessonTitle} - ${goalDisplayName}`,
         isAI: true
       });
-  
+
       await new Promise(resolve => setTimeout(resolve, 1000));
-  
-      // Ask about level at the beginning of a new lesson
+
+      // Ask about level at the beginning
       askAboutLevel(
         addMessage,
         updateMessage,
         (params) => typeMessageWithEffect(params, addMessage, updateMessage),
         (level) => handleLevelSelect(
           level,
-          lessonKey,
+          currentLesson,
           user,
           currentChapter,
           setIsLoading,
@@ -116,15 +158,16 @@ const HierarchicalChat = () => {
           addMessage,
           updateMessage,
           (params) => typeMessageWithEffect(params, addMessage, updateMessage),
-          setCurrentGoal,
+          setCurrentGoalState,
           setCurrentLevel,
-          generateNextQuestion
+          generateNextQuestion,
+          goalKey // Pass the selected goal
         )
       );
     } catch (error) {
-      console.error('Error in lesson selection:', error);
+      console.error('Error in goal selection:', error);
       addMessage({
-        text: 'عذراً، حدث خطأ في اختيار الدرس. الرجاء المحاولة مرة أخرى.',
+        text: 'عذراً، حدث خطأ في اختيار الهدف. الرجاء المحاولة مرة أخرى.',
         isAI: true
       });
     }
@@ -146,12 +189,12 @@ const HierarchicalChat = () => {
         generateNextQuestion
       }),
       generateNextQuestion,
-      setCurrentGoal,
+      setCurrentGoal: setCurrentGoalState,
       currentChapter,
       currentLesson,
       currentLevel,
       setCurrentLevel,
-      currentPoint // Pass the current point here
+      currentPoint
     });
   }, [currentQuestion, currentQuestionId, currentLevel, currentChapter, currentGoal, currentPoint]);
 
@@ -173,7 +216,7 @@ const HierarchicalChat = () => {
     clearSelection();
     setCurrentQuestion(null);
     setCurrentLevel(null);
-    setCurrentGoal(null);
+    setCurrentGoalState(null);
     setIsFirstQuestion(true);
     addMessage({
       text: 'مرحباً! الرجاء اختيار الفصل الذي تريد دراسته',
@@ -185,18 +228,17 @@ const HierarchicalChat = () => {
 
   const handleBack = () => {
     if (selectionStage === 'chapter') {
-      setSelectionStage('subject');
-      setCurrentSelection(null, null, null);
+      clearSelection();
       navigate('/subjects', { replace: true });
     } else if (selectionStage === 'lesson') {
+      setCurrentSelection(currentSubject, null, null, null);
       setSelectionStage('chapter');
-      setCurrentSelection(currentSubject, null, null);
-    } else if (selectionStage === 'chat') {
+    } else if (selectionStage === 'goal') {
+      setCurrentSelection(currentSubject, currentChapter, null, null);
       setSelectionStage('lesson');
-      setCurrentSelection(currentSubject, currentChapter, null);
-    } else if (selectionStage === 'answer') {
-      setCurrentSelection(null, null, null);
-      navigate('/subjects', { replace: true });
+    } else if (selectionStage === 'chat') {
+      setCurrentSelection(currentSubject, currentChapter, currentLesson, null);
+      setSelectionStage('goal');
     }
   };
 
@@ -233,6 +275,21 @@ const HierarchicalChat = () => {
               isActive={currentLesson === key}
             />
           ))}
+        </div>
+      );
+    }
+
+    if (selectionStage === 'goal' && currentChapter && currentLesson) {
+      const lessonNumber = getLessonNumber(currentLesson);
+      return (
+        <div className="mt-6">
+          <GoalSelection
+            chapter={currentChapter}
+            lesson={lessonNumber}
+            onGoalSelect={handleGoalSelect}
+            onBack={handleBack}
+            selectedGoal={currentGoal}
+          />
         </div>
       );
     }

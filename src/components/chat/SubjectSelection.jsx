@@ -62,15 +62,9 @@ const SubjectSelection = () => {
       return;
     }
   
-    
-      setCurrentSelection(subject.id, null, null);
-    
-    // // Verify storage before navigating
-    // const storedSubject = localStorage.getItem('selectedSubject');
-    // console.log("Stored in LocalStorage:", storedSubject);
+    // Set only the subject, clear other selections
+    setCurrentSelection(subject.id, null, null, null);
     navigate('/chat', { replace: true });
-    
-    
   };
   
 

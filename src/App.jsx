@@ -24,19 +24,6 @@ const queryClient = new QueryClient({
     },
   },
 });
-const RequireSubject = ({ children }) => {
-  const selectedSubject = localStorage.getItem('selectedSubject');
-  console.log("RequireSubject - Found:", selectedSubject);
-
-  if (!selectedSubject) {
-    console.warn("RequireSubject - Redirecting to /subjects");
-    return <Navigate to="/subjects" replace />;
-  }
-
-  return children;
-};
-
-
 const App = () => {
   return (
     <BrowserRouter>
@@ -71,14 +58,12 @@ const App = () => {
                 }
               />
 
-              {/* Chat Path - Ensures Subject is Selected */}
+              {/* Chat Path - Now handles its own selection flow */}
               <Route
                 path="/chat"
                 element={
                   <ProtectedRoute>
-                    <RequireSubject>
-                      <AnimatedChat />
-                    </RequireSubject>
+                    <AnimatedChat />
                   </ProtectedRoute>
                 }
               />

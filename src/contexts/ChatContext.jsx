@@ -13,6 +13,9 @@ export const ChatProvider = ({ children }) => {
   const [currentLesson, setCurrentLesson] = useState(() => 
     localStorage.getItem('selectedLesson') || null
   );
+  const [currentGoal, setCurrentGoal] = useState(() => 
+    localStorage.getItem('selectedGoal') || null
+  );
 
   const addMessage = (message) => {
     setMessages(prevMessages => {
@@ -39,24 +42,28 @@ export const ChatProvider = ({ children }) => {
     setMessages([]);
   };
 
-  const setCurrentSelection = (subject, chapter, lesson) => {
-    localStorage.setItem('selectedSubject', subject);
-    localStorage.setItem('selectedChapter', chapter);
-    localStorage.setItem('selectedLesson', lesson);
+  const setCurrentSelection = (subject, chapter, lesson, goal = null) => {
+    if (subject !== null) localStorage.setItem('selectedSubject', subject);
+    if (chapter !== null) localStorage.setItem('selectedChapter', chapter);
+    if (lesson !== null) localStorage.setItem('selectedLesson', lesson);
+    if (goal !== null) localStorage.setItem('selectedGoal', goal);
     
     setCurrentSubject(subject);
     setCurrentChapter(chapter);
     setCurrentLesson(lesson);
+    setCurrentGoal(goal);
   };
 
   const clearSelection = () => {
     localStorage.removeItem('selectedSubject');
     localStorage.removeItem('selectedChapter');
     localStorage.removeItem('selectedLesson');
+    localStorage.removeItem('selectedGoal');
     
     setCurrentSubject(null);
     setCurrentChapter(null);
     setCurrentLesson(null);
+    setCurrentGoal(null);
     clearMessages();
   };
 
@@ -66,6 +73,7 @@ export const ChatProvider = ({ children }) => {
       currentSubject,
       currentChapter,
       currentLesson,
+      currentGoal,
       setCurrentSelection,
       clearSelection,
       addMessage,
