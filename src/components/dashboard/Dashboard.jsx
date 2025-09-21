@@ -294,6 +294,66 @@ const chaptersData = {
       ? Math.round((student.correct_answers / student.questions_answered) * 100) 
       : 0;
 
+    // State for individual student report
+    const [studentReportData, setStudentReportData] = useState(null);
+    const [isLoadingReport, setIsLoadingReport] = useState(false);
+    const [reportError, setReportError] = useState(null);
+
+    // Function to fetch student report from API
+    const fetchStudentReport = async (username) => {
+      if (!username) {
+        setReportError('اسم المستخدم غير متوفر');
+        return;
+      }
+      
+      setIsLoadingReport(true);
+      setReportError(null);
+      
+      try {
+        const response = await fetch('https://scaiapipost.replit.app/student-report', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify({
+            username: username
+          })
+        });
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            throw new Error('التقرير غير موجود لهذا الطالب');
+          } else if (response.status === 422) {
+            throw new Error('بيانات الطالب غير صحيحة');
+          } else {
+            throw new Error(`خطأ في الخادم: ${response.status}`);
+          }
+        }
+
+        const data = await response.json();
+        
+        if (data.student_report) {
+          setStudentReportData(data.student_report);
+        } else {
+          throw new Error('لم يتم العثور على تقرير للطالب');
+        }
+      } catch (error) {
+        console.error('Error fetching student report:', error);
+        setReportError(error.message || 'فشل في تحميل التقرير. يرجى المحاولة مرة أخرى.');
+      } finally {
+        setIsLoadingReport(false);
+      }
+    };
+
+    // Fetch report when dialog opens and user switches to report tab
+    const handleTabChange = (tab) => {
+      setActiveTab(tab);
+      if (tab === 'report' && !studentReportData && !isLoadingReport) {
+        fetchStudentReport(student.username);
+      }
+    };
+
     return (
       <Dialog 
         open={dialogOpen && selectedStudent?.username === student.username} 
@@ -301,6 +361,9 @@ const chaptersData = {
           if (!open) {
             setDialogOpen(false);
             setSelectedStudent(null);
+            // Reset report data when dialog closes
+            setStudentReportData(null);
+            setReportError(null);
           }
         }}
       >
@@ -413,7 +476,7 @@ const chaptersData = {
             <div className="flex justify-end gap-2 mb-6 bg-gray-50 p-1 rounded-lg">
               <button
                 type="button"
-                onClick={() => setActiveTab('overview')}
+                onClick={() => handleTabChange('overview')}
                 className={`px-4 py-3 rounded-md transition-all text-sm font-medium flex-1 sm:flex-none ${
                   activeTab === 'overview' 
                     ? 'bg-white text-orange-600 shadow-sm' 
@@ -424,7 +487,7 @@ const chaptersData = {
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTab('report')}
+                onClick={() => handleTabChange('report')}
                 className={`px-4 py-3 rounded-md transition-all text-sm font-medium flex-1 sm:flex-none ${
                   activeTab === 'report' 
                     ? 'bg-white text-orange-600 shadow-sm' 
@@ -457,7 +520,7 @@ const chaptersData = {
                     <p className="text-3xl font-bold text-purple-800 mb-2">
                       {student.average_rating ? student.average_rating.toFixed(1) : '0.0'}
                     </p>
-                    <p className="text-xs text-purple-600">من 10 نجوم</p>
+                    <p className="text-xs text-purple-600">من 5 نجوم</p>
                   </div>
                   <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-xl border border-green-200">
                     <div className="flex items-center justify-between mb-3">
@@ -522,14 +585,57 @@ const chaptersData = {
                   <div className="h-10 w-10 bg-orange-100 rounded-lg flex items-center justify-center">
                     <FileText className="h-5 w-5 text-orange-600" />
                   </div>
-                  <h4 className="text-lg font-semibold text-gray-800">التقرير التفصيلي للطالب</h4>
+                  <h4 className="text-lg font-semibold text-gray-800 flex-1">التقرير التفصيلي للطالب</h4>
+                  {isLoadingReport && (
+                    <div className="flex items-center gap-2 text-orange-600">
+                      <div className="w-4 h-4 border-2 border-orange-600 border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-sm">جاري التحميل...</span>
+                    </div>
+                  )}
+                  {studentReportData && !isLoadingReport && (
+                    <button
+                      onClick={() => fetchStudentReport(student.username)}
+                      className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition-colors text-sm flex items-center gap-1"
+                      title="تحديث التقرير"
+                    >
+                      <div className="w-4 h-4">↻</div>
+                      تحديث
+                    </button>
+                  )}
                 </div>
-                {student.student_report ? (
+                
+                {isLoadingReport ? (
+                  <div className="text-center py-12">
+                    <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-gray-500 font-medium">جاري تحميل التقرير...</p>
+                    <p className="text-gray-400 text-sm mt-1">قد يستغرق هذا بضع ثوانٍ</p>
+                  </div>
+                ) : reportError ? (
+                  <div className="text-center py-12">
+                    <div className="h-16 w-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <FileText className="h-8 w-8 text-red-400" />
+                    </div>
+                    <p className="text-red-500 font-medium mb-2">خطأ في تحميل التقرير</p>
+                    <p className="text-gray-400 text-sm mb-4">{reportError}</p>
+                    <button
+                      onClick={() => fetchStudentReport(student.username)}
+                      className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm"
+                    >
+                      إعادة المحاولة
+                    </button>
+                  </div>
+                ) : studentReportData ? (
                   <div className="max-h-80 overflow-y-auto">
                     <div className="prose prose-sm max-w-none text-right">
                       <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">
-                        {student.student_report}
+                        {studentReportData}
                       </p>
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span>تم تحميل التقرير من الخادم</span>
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -538,7 +644,13 @@ const chaptersData = {
                       <FileText className="h-8 w-8 text-gray-400" />
                     </div>
                     <p className="text-gray-500 font-medium">لا يوجد تقرير متاح</p>
-                    <p className="text-gray-400 text-sm mt-1">سيتم إنشاء التقرير تلقائياً عند توفر بيانات كافية</p>
+                    <p className="text-gray-400 text-sm mt-1 mb-4">انقر على الزر أدناه لتحميل التقرير</p>
+                    <button
+                      onClick={() => fetchStudentReport(student.username)}
+                      className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm"
+                    >
+                      تحميل التقرير
+                    </button>
                   </div>
                 )}
               </div>
